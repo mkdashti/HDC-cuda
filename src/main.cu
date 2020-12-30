@@ -2,21 +2,6 @@
 
 #define BUILTIN_CAO
 
-int
-associative_memory_32bit(uint32_t *q_32, uint32_t *aM_32);
-
-void
-hamming_dist(uint32_t *q, uint32_t *aM, int *sims);
-
-int
-max_dist_hamm(int *distances);
-
-void
-compute_N_gram(int *input, uint32_t *query);
-
-int
-number_of_set_bits(uint32_t i);
-
 /**
  * @brief Tests the accuracy based on input testing queries.
  *
@@ -148,19 +133,6 @@ number_of_set_bits(uint32_t i) {
 #endif
 }
 
-
-
-
-
-//*********************************************
-
-
-
-
-
-
-
-
 /**
  * @struct hdc_data
  * @brief HDC data for HDC task
@@ -171,16 +143,6 @@ typedef struct hdc_data {
     uint32_t result_len;   /**< Length of the results */
     double execution_time; /**< Total execution time of run */
 } hdc_data;
-
-/**
- * @struct in_buffer
- *
- * @brief   Input buffer for a DPU
- */
-typedef struct in_buffer {
-    int32_t buffer[HDC_MAX_INPUT];
-    size_t buffer_size;
-} in_buffer;
 
 /**
  * @brief Function for @p run_hdc to run HDC task
@@ -290,17 +252,17 @@ run_hdc(hdc fn, hdc_data *data, void *runtime) {
 }
 
 /**
- * @brief Compare the results from the host and DPU confirming they are the same
+ * @brief Compare the results from the host and GPU confirming they are the same
  *        or printing differences
  *
- * @param[in] dpu_data   Results to be tested from DPU
+ * @param[in] gpu_data   Results to be tested from GPU
  * @param[in] host_data  Results to be tested from host
  * @param[in] check_only Only check results are equal, dont print differences
  *
  * @return               Non-zero if results are not the same
  */
 static int
-compare_results(hdc_data *dpu_data, hdc_data *host_data, bool check_only) {
+compare_results(hdc_data *gpu_data, hdc_data *host_data, bool check_only) {
     int ret = 0;
 
     if (!check_only) {
@@ -309,12 +271,12 @@ compare_results(hdc_data *dpu_data, hdc_data *host_data, bool check_only) {
     }
 
     for (uint32_t i = 0; i < host_data->result_len; i++) {
-        if (host_data->results[i] != dpu_data->results[i]) {
+        if (host_data->results[i] != gpu_data->results[i]) {
             if (check_only) {
                 return -1;
             }
-            fprintf(stderr, "(host_results[%u] = %d) != (dpu_results[%u] = %d)\n", i,
-                    host_data->results[i], i, dpu_data->results[i]);
+            fprintf(stderr, "(host_results[%u] = %d) != (gpu_results[%u] = %d)\n", i,
+                    host_data->results[i], i, gpu_data->results[i]);
             ret = -1;
         }
     }
@@ -373,12 +335,12 @@ usage(FILE *stream, char const *exe_name) {
 
 int
 main(int argc, char **argv) {
-    bool use_dpu = false;
+    bool use_gpu = false;
     bool show_results = false;
     bool test_results = false;
     bool runtime_only = false;
     int ret = 0;
-    int dpu_ret = 0;
+    int gpu_ret = 0;
     int host_ret = 0;
     char const options[] = "dsthri:";
     char *input = NULL;
@@ -387,7 +349,7 @@ main(int argc, char **argv) {
     while ((opt = getopt(argc, argv, options)) != -1) {
         switch (opt) {
             case 'd':
-                use_dpu = true;
+                use_gpu = true;
                 break;
 
             case 'i':
@@ -436,18 +398,24 @@ main(int argc, char **argv) {
 
     quantize_set(test_set, data_set);
 
-    hdc_data dpu_results = {.data_set = data_set, .results = NULL};
+    hdc_data gpu_results = {.data_set = data_set, .results = NULL};
     hdc_data host_results = {.data_set = data_set, .results = NULL};
 
+    if (use_gpu || test_results) {
+        //gpu_ret = run_hdc(host_hdc, &host_results, NULL);
+        if (gpu_ret != 0) {
+            goto err;
+        }
+    }
 
-    if (!use_dpu || test_results) {
+    if (!use_gpu || test_results) {
         host_ret = run_hdc(host_hdc, &host_results, NULL);
         if (host_ret != 0) {
             goto err;
         }
     }
 
-    if (!use_dpu || test_results) {
+    if (!use_gpu || test_results) {
         if (!runtime_only) {
             printf("--- Host --\n");
             if (show_results) {
@@ -460,14 +428,14 @@ main(int argc, char **argv) {
     }
 
     if (test_results) {
-        ret = compare_results(&dpu_results, &host_results, runtime_only);
+        ret = compare_results(&gpu_results, &host_results, runtime_only);
     }
 
 err:
     free(data_set);
     free(test_set);
     free(host_results.results);
-    free(dpu_results.results);
+    free(gpu_results.results);
 
-    return (ret + dpu_ret + host_ret);
+    return (ret + gpu_ret + host_ret);
 }

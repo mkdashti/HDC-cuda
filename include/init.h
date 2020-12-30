@@ -31,4 +31,19 @@ typedef struct hdc_vars {
     uint32_t aM_32[MAX_N * (MAX_BIT_DIM + 1)]; /**< Associative memory */
 } hdc_vars;
 
+int
+associative_memory_32bit(uint32_t *q_32, uint32_t *aM_32);
+
+void
+hamming_dist(uint32_t *q, uint32_t *aM, int *sims);
+
+int
+max_dist_hamm(int *distances);
+
+void
+compute_N_gram(int *input, uint32_t *query);
+
+int
+number_of_set_bits(uint32_t i);
+
 #endif // INIT_H_
