@@ -218,6 +218,74 @@ host_hdc(int32_t *data_set, int32_t *results, void *runtime) {
 }
 
 /**
+ * @brief Run the HDC algorithm for the host
+ *
+ * @param[in]  data_set  Input dataset
+ * @param[out] results   Results from run
+ * @param[out] runtime   Runtimes of individual sections (unused)
+ *
+ * @return               Non-zero on failure.
+ */
+static int
+gpu_hdc(int32_t *data_set, int32_t *results, void *runtime) {
+//TODO convert this function to CUDA
+    (void) runtime;
+
+    uint32_t overflow = 0;
+    uint32_t old_overflow = 0;
+    uint32_t mask = 1;
+    uint32_t q[hd.bit_dim + 1];
+    uint32_t q_N[hd.bit_dim + 1];
+    int32_t quantized_buffer[hd.channels];
+
+    int result_num = 0;
+
+    for (int ix = 0; ix < number_of_input_samples; ix += hd.n) {
+
+        for (int z = 0; z < hd.n; z++) {
+
+            for (int j = 0; j < hd.channels; j++) {
+                if (ix + z < number_of_input_samples) {
+                    int ind = A2D1D(number_of_input_samples, j, ix + z);
+                    quantized_buffer[j] = data_set[ind];
+                }
+            }
+
+            // Spatial and Temporal Encoder: computes the n-gram.
+            // N.B. if n = 1 we don't have the Temporal Encoder but only the Spatial Encoder.
+            if (z == 0) {
+                compute_N_gram(quantized_buffer, q);
+            } else {
+                compute_N_gram(quantized_buffer, q_N);
+
+                // Here the hypervector q is shifted by 1 position as permutation,
+                // before performing the componentwise XOR operation with the new query (q_N).
+                overflow = q[0] & mask;
+
+                for (int i = 1; i < hd.bit_dim; i++) {
+                    old_overflow = overflow;
+                    overflow = q[i] & mask;
+                    q[i] = (q[i] >> 1) | (old_overflow << (32 - 1));
+                    q[i] = q_N[i] ^ q[i];
+                }
+
+                old_overflow = overflow;
+                overflow = (q[hd.bit_dim] >> 16) & mask;
+                q[hd.bit_dim] = (q[hd.bit_dim] >> 1) | (old_overflow << (32 - 1));
+                q[hd.bit_dim] = q_N[hd.bit_dim] ^ q[hd.bit_dim];
+
+                q[0] = (q[0] >> 1) | (overflow << (32 - 1));
+                q[0] = q_N[0] ^ q[0];
+            }
+        }
+        // classifies the new N-gram through the Associative Memory matrix.
+        results[result_num++] = associative_memory_32bit(q, hd.aM_32);
+    }
+
+    return 0;
+}
+
+/**
  * @brief Run a HDC workload and time the execution
  *
  * @param[in] fn        Function to run HDC algorithm
@@ -407,7 +475,7 @@ main(int argc, char **argv) {
     hdc_data host_results = {.data_set = data_set, .results = NULL};
 
     if (use_gpu || test_results) {
-        //gpu_ret = run_hdc(host_hdc, &host_results, NULL);
+        gpu_ret = run_hdc(gpu_hdc, &gpu_results, NULL);
         if (gpu_ret != 0) {
             goto err;
         }
@@ -432,6 +500,18 @@ main(int argc, char **argv) {
         }
     }
 
+    if (use_gpu || test_results) {
+        if (!runtime_only) {
+            printf("--- GPU --\n");
+            if (show_results) {
+                print_results(&gpu_results);
+            }
+            printf("GPU took %fs\n", gpu_results.execution_time);
+        } else {
+            printf("%f\n", gpu_results.execution_time);
+        }
+    }
+
     if (test_results) {
         ret = compare_results(&gpu_results, &host_results, runtime_only);
     }
@@ -443,7 +523,8 @@ err:
     checkCudaErrors(cudaFree(test_set));
     //free(host_results.results);
     checkCudaErrors(cudaFree(host_results.results));
-    free(gpu_results.results);
+    //free(gpu_results.results);
+    checkCudaErrors(cudaFree(gpu_results.results));
 
     return (ret + gpu_ret + host_ret);
 }
