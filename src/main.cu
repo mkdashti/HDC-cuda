@@ -357,6 +357,11 @@ host_hdc(int32_t *data_set, int32_t *results, void *runtime) {
     return 0;
 }
 
+
+__global__ void hdc_kernel()
+{
+
+}
 /**
  * @brief Run the HDC algorithm for the host
  *
@@ -369,6 +374,9 @@ host_hdc(int32_t *data_set, int32_t *results, void *runtime) {
 static int
 gpu_hdc(int32_t *data_set, int32_t *results, void *runtime) {
 //TODO convert this function to CUDA
+
+    hdc_kernel<<<1,1>>>();
+
     (void) runtime;
 
     uint32_t overflow = 0;
