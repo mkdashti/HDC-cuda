@@ -58,7 +58,8 @@ read_data(char const *input_file, double **test_set) {
     }
 
     sz = hd.channels * number_of_input_samples * sizeof(double);
-    *test_set = (double *)malloc(sz);
+    //*test_set = (double *)malloc(sz);
+    checkCudaErrors(cudaMallocManaged(&(*test_set), sz));
     if (*test_set == NULL) {
         nomem();
     }

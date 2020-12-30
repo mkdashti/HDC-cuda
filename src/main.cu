@@ -237,7 +237,9 @@ run_hdc(hdc fn, hdc_data *data, void *runtime) {
     uint32_t result_size = data->result_len * sizeof(int32_t);
 
 
-    data->results = (int32_t *)malloc(result_size);
+    //data->results = (int32_t *)malloc(result_size);
+    checkCudaErrors(cudaMallocManaged(&data->results, result_size));
+    
     if (data->results == NULL) {
         nomem();
     }
@@ -391,7 +393,10 @@ main(int argc, char **argv) {
     }
 
     uint32_t buffer_size = (sizeof(int32_t) * number_of_input_samples * hd.channels);
-    int32_t *data_set = (int32_t *)malloc(buffer_size);
+    //int32_t *data_set = (int32_t *)malloc(buffer_size);
+    int32_t *data_set;
+    checkCudaErrors(cudaMallocManaged(&data_set, buffer_size));
+
     if (data_set == NULL) {
         nomem();
     }
@@ -432,9 +437,12 @@ main(int argc, char **argv) {
     }
 
 err:
-    free(data_set);
-    free(test_set);
-    free(host_results.results);
+    //free(data_set);
+    checkCudaErrors(cudaFree(data_set));
+    //free(test_set);
+    checkCudaErrors(cudaFree(test_set));
+    //free(host_results.results);
+    checkCudaErrors(cudaFree(host_results.results));
     free(gpu_results.results);
 
     return (ret + gpu_ret + host_ret);
