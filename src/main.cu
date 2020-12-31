@@ -365,24 +365,23 @@ host_hdc(int32_t *data_set, int32_t *results, void *runtime) {
 
 __global__ void hdc_kernel(int32_t *data_set, int32_t *results, void *runtime)
 {
+    uint32_t idx = blockDim.x * blockIdx.x + threadIdx.x;
 
-    uint32_t overflow = 0;
-    uint32_t old_overflow = 0;
-    uint32_t mask = 1;
-    uint32_t *q = (uint32_t *)malloc(sizeof(uint32_t)*hd.bit_dim + 1);
-    uint32_t *q_N = (uint32_t *)malloc(sizeof(uint32_t)*hd.bit_dim + 1);
-    int32_t *quantized_buffer = (int32_t *)malloc(sizeof(int32_t)* hd.channels);
+    if(idx % hd.n == 0) {
+        uint32_t overflow = 0;
+        uint32_t old_overflow = 0;
+        uint32_t mask = 1;
+        uint32_t *q = (uint32_t *)malloc(sizeof(uint32_t)*hd.bit_dim + 1);
+        uint32_t *q_N = (uint32_t *)malloc(sizeof(uint32_t)*hd.bit_dim + 1);
+        int32_t *quantized_buffer = (int32_t *)malloc(sizeof(int32_t)* hd.channels);
 
-    int result_num = 0;
-
-    printf("%d %d %d \n",number_of_input_samples, hd.n, hd.channels);
-    for (int ix = 0; ix < number_of_input_samples; ix += hd.n) {
-
+        //printf("%d %d %d %d\n",number_of_input_samples, hd.n, hd.channels, hd.bit_dim);
+        
         for (int z = 0; z < hd.n; z++) {
 
             for (int j = 0; j < hd.channels; j++) {
-                if (ix + z < number_of_input_samples) {
-                    int ind = A2D1D(number_of_input_samples, j, ix + z);
+                if (idx + z < number_of_input_samples) {
+                    int ind = A2D1D(number_of_input_samples, j, idx + z);
                     quantized_buffer[j] = data_set[ind];
                 }
             }
@@ -415,17 +414,18 @@ __global__ void hdc_kernel(int32_t *data_set, int32_t *results, void *runtime)
             }
         }
         // classifies the new N-gram through the Associative Memory matrix.
-        results[result_num++] = associative_memory_32bit(q, hd.aM_32);
+        results[idx/hd.n] = associative_memory_32bit(q, hd.aM_32);
+    
+        free(q);
+        free(q_N);
+        free(quantized_buffer);
     }
-    free(q);
-    free(q_N);
-    free(quantized_buffer);
 }
 
 static int
 gpu_hdc(int32_t *data_set, int32_t *results, void *runtime) {
 
-    hdc_kernel<<<1,1>>>(data_set, results, runtime);
+    hdc_kernel<<<number_of_input_samples,1>>>(data_set, results, runtime);
     checkCudaErrors(cudaDeviceSynchronize());
 
     return 0;
