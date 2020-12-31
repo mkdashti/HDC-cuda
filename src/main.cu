@@ -30,7 +30,7 @@
 
 #define BUILTIN_CAO
 
-hdc_vars hd;
+__managed__ hdc_vars hd;
 
 // Number of samples stored in each channel in the dataset
 // In the test data sets, these are EMG samples which have been
@@ -149,7 +149,7 @@ quantize_set(double const *input_set, int32_t *buffer) {
  * @param[in] aM_32 Trained associative memory
  * @return          Classification result
  */
-int
+__host__ __device__ int
 associative_memory_32bit(uint32_t *q_32, uint32_t *aM_32) {
     int sims[CLASSES] = {0};
 
@@ -166,7 +166,7 @@ associative_memory_32bit(uint32_t *q_32, uint32_t *aM_32) {
  * @param[in] distances Distances associated to each class
  * @return              The class related to the maximum distance
  */
-int
+__host__ __device__ int
 max_dist_hamm(int *distances) {
     int max = distances[0];
     int max_index = 0;
@@ -188,7 +188,7 @@ max_dist_hamm(int *distances) {
  * @param[in] aM    Associative Memory matrix
  * @param[out] sims Distances' vector
  */
-void
+__host__ __device__ void
 hamming_dist(uint32_t *q, uint32_t *aM, int *sims) {
     for (int i = 0; i < CLASSES; i++) {
         sims[i] = 0;
@@ -202,7 +202,7 @@ hamming_dist(uint32_t *q, uint32_t *aM, int *sims) {
  * @brief Read from im
  * @param[in] im_ind    im array index
  */
-static inline uint32_t
+__host__ __device__ static inline uint32_t
 read_im(uint32_t im_ind) {
     return iM[im_ind];
 }
@@ -211,7 +211,7 @@ read_im(uint32_t im_ind) {
  * @brief Read from cham
  * @param[in] cham_ind    cham array index
  */
-static inline uint32_t
+__host__ __device__ static inline uint32_t
 read_cham(uint32_t cham_ind) {
     return chAM[cham_ind];
 }
@@ -222,7 +222,7 @@ read_cham(uint32_t cham_ind) {
  * @param[in] input       Input data
  * @param[out] query      Query hypervector
  */
-void
+__host__ __device__ void
 compute_N_gram(int32_t *input, uint32_t *query) {
 
     uint32_t chHV[MAX_CHANNELS + 1];
@@ -262,16 +262,21 @@ compute_N_gram(int32_t *input, uint32_t *query) {
  * @param i The i-th variable that composes the hypervector
  * @return  Number of 1's in i-th variable of hypervector
  */
-inline int
+__host__ __device__ inline int
 number_of_set_bits(uint32_t i) {
 #ifdef BUILTIN_CAO
+#ifdef  __CUDA_ARCH__
+    return __popc(i);
+#else
     return __builtin_popcount(i);
+#endif
 #else
     i = i - ((i >> 1) & 0x55555555);
     i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
     return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
 #endif
 }
+
 
 /**
  * @struct hdc_data
@@ -360,7 +365,7 @@ host_hdc(int32_t *data_set, int32_t *results, void *runtime) {
 
 __global__ void hdc_kernel()
 {
-
+    printf("%d\n",number_of_set_bits(0x110011));
 }
 /**
  * @brief Run the HDC algorithm for the host

@@ -31,19 +31,19 @@ typedef struct hdc_vars {
     uint32_t aM_32[MAX_N * (MAX_BIT_DIM + 1)]; /**< Associative memory */
 } hdc_vars;
 
-int
+__host__ __device__ int
 associative_memory_32bit(uint32_t *q_32, uint32_t *aM_32);
 
-void
+__host__ __device__ void
 hamming_dist(uint32_t *q, uint32_t *aM, int *sims);
 
-int
+__host__ __device__ int
 max_dist_hamm(int *distances);
 
-void
+__host__ __device__ void
 compute_N_gram(int *input, uint32_t *query);
 
-int
+__host__ __device__ int
 number_of_set_bits(uint32_t i);
 
 #endif // INIT_H_
