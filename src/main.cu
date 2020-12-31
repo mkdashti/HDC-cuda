@@ -363,36 +363,19 @@ host_hdc(int32_t *data_set, int32_t *results, void *runtime) {
 }
 
 
-__global__ void hdc_kernel()
+__global__ void hdc_kernel(int32_t *data_set, int32_t *results, void *runtime)
 {
-    printf("%d\n",number_of_set_bits(0x110011));
-}
-/**
- * @brief Run the HDC algorithm for the host
- *
- * @param[in]  data_set  Input dataset
- * @param[out] results   Results from run
- * @param[out] runtime   Runtimes of individual sections (unused)
- *
- * @return               Non-zero on failure.
- */
-static int
-gpu_hdc(int32_t *data_set, int32_t *results, void *runtime) {
-//TODO convert this function to CUDA
-
-    hdc_kernel<<<1,1>>>();
-
-    (void) runtime;
 
     uint32_t overflow = 0;
     uint32_t old_overflow = 0;
     uint32_t mask = 1;
-    uint32_t q[hd.bit_dim + 1];
-    uint32_t q_N[hd.bit_dim + 1];
-    int32_t quantized_buffer[hd.channels];
+    uint32_t *q = (uint32_t *)malloc(sizeof(uint32_t)*hd.bit_dim + 1);
+    uint32_t *q_N = (uint32_t *)malloc(sizeof(uint32_t)*hd.bit_dim + 1);
+    int32_t *quantized_buffer = (int32_t *)malloc(sizeof(int32_t)* hd.channels);
 
     int result_num = 0;
 
+    printf("%d %d %d \n",number_of_input_samples, hd.n, hd.channels);
     for (int ix = 0; ix < number_of_input_samples; ix += hd.n) {
 
         for (int z = 0; z < hd.n; z++) {
@@ -434,6 +417,16 @@ gpu_hdc(int32_t *data_set, int32_t *results, void *runtime) {
         // classifies the new N-gram through the Associative Memory matrix.
         results[result_num++] = associative_memory_32bit(q, hd.aM_32);
     }
+    free(q);
+    free(q_N);
+    free(quantized_buffer);
+}
+
+static int
+gpu_hdc(int32_t *data_set, int32_t *results, void *runtime) {
+
+    hdc_kernel<<<1,1>>>(data_set, results, runtime);
+    checkCudaErrors(cudaDeviceSynchronize());
 
     return 0;
 }
