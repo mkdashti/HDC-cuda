@@ -37,9 +37,11 @@ __managed__ hdc_vars hd;
 // sampled at a rate of 500 Hertz
 __managed__ int32_t number_of_input_samples;
 
-__managed__ uint32_t iM[MAX_IM_LENGTH * (MAX_BIT_DIM + 1)];
+//__managed__ uint32_t iM[MAX_IM_LENGTH * (MAX_BIT_DIM + 1)];
+__managed__ uint32_t *iM;
 
-__managed__ uint32_t chAM[MAX_CHANNELS * (MAX_BIT_DIM + 1)];
+//__managed__ uint32_t chAM[MAX_CHANNELS * (MAX_BIT_DIM + 1)];
+__managed__ __device__ uint32_t *chAM;
 
 /**
  * @brief Exit if NOMEM
@@ -561,6 +563,9 @@ main(int argc, char **argv) {
     char const options[] = "dsthri:";
     char *input = NULL;
 
+    checkCudaErrors(cudaMallocManaged(&iM, sizeof(uint32_t) * MAX_IM_LENGTH * (MAX_BIT_DIM + 1)));
+    checkCudaErrors(cudaMallocManaged(&chAM, sizeof(uint32_t) * MAX_CHANNELS * (MAX_BIT_DIM + 1)));
+
     int opt;
     while ((opt = getopt(argc, argv, options)) != -1) {
         switch (opt) {
@@ -671,6 +676,9 @@ err:
     checkCudaErrors(cudaFree(host_results.results));
     //free(gpu_results.results);
     checkCudaErrors(cudaFree(gpu_results.results));
+
+    checkCudaErrors(cudaFree(iM));
+    checkCudaErrors(cudaFree(chAM));
 
     return (ret + gpu_ret + host_ret);
 }
