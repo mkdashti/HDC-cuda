@@ -427,6 +427,11 @@ __global__ void hdc_kernel(int32_t *data_set, int32_t *results, void *runtime)
 static int
 gpu_hdc(int32_t *data_set, int32_t *results, void *runtime) {
 
+    //int device = -1;
+    //cudaGetDevice(&device);
+    //cudaMemPrefetchAsync(iM, sizeof(uint32_t) * MAX_IM_LENGTH * (MAX_BIT_DIM + 1), device, NULL);
+    //cudaMemPrefetchAsync(chAM, sizeof(uint32_t) * MAX_CHANNELS * (MAX_BIT_DIM + 1), device, NULL);
+
     hdc_kernel<<<number_of_input_samples,1>>>(data_set, results, runtime);
     checkCudaErrors(cudaDeviceSynchronize());
 
