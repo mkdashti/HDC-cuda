@@ -1,3 +1,6 @@
 src/*.o
 *.o
 pim_hdc
+*.txt
+results/
+runTests.sh

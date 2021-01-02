@@ -640,7 +640,7 @@ main(int argc, char **argv) {
             if (show_results) {
                 print_results(&host_results);
             }
-            printf("Host took %fs\n", host_results.execution_time);
+            printf("Host took %f\n", host_results.execution_time);
         } else {
             printf("%f\n", host_results.execution_time);
         }
@@ -652,7 +652,7 @@ main(int argc, char **argv) {
             if (show_results) {
                 print_results(&gpu_results);
             }
-            printf("GPU took %fs\n", gpu_results.execution_time);
+            printf("GPU took %f\n", gpu_results.execution_time);
         } else {
             printf("%f\n", gpu_results.execution_time);
         }
